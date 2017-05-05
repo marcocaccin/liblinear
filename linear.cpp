@@ -2357,35 +2357,78 @@ model* train(const problem *prob, const parameter *param)
 			else
 			{
 				model_->w=Malloc(double, w_size*nr_class);
-				double *w=Malloc(double, w_size);
+
+#pragma omp parallel for private(i, j, k) 
+
 				for(i=0;i<nr_class;i++)
+
 				{
+
+					problem sub_prob_omp;
+
+					sub_prob_omp.l = l;
+
+					sub_prob_omp.n = n;
+
+					sub_prob_omp.x = x;
+
+					sub_prob_omp.y = Malloc(double,l);
+
+
+
 					int si = start[i];
+
 					int ei = si+count[i];
 
+
+
+					double *w=Malloc(double, w_size);
+
+
+
 					k=0;
+
 					for(; k<si; k++)
-						sub_prob.y[k] = -1;
+
+						sub_prob_omp.y[k] = -1;
+
 					for(; k<ei; k++)
-						sub_prob.y[k] = +1;
-					for(; k<sub_prob.l; k++)
-						sub_prob.y[k] = -1;
+
+						sub_prob_omp.y[k] = +1;
+
+					for(; k<sub_prob_omp.l; k++)
+
+						sub_prob_omp.y[k] = -1;
+
+
 
 					if(param->init_sol != NULL)
+
 						for(j=0;j<w_size;j++)
+
 							w[j] = param->init_sol[j*nr_class+i];
+
 					else
+
 						for(j=0;j<w_size;j++)
+
 							w[j] = 0;
 
-					train_one(&sub_prob, param, w, weighted_C[i], param->C);
+
+
+					train_one(&sub_prob_omp, param, w, weighted_C[i], param->C);
+
+
 
 					for(j=0;j<w_size;j++)
-						model_->w[j*nr_class+i] = w[j];
-				}
-				free(w);
-			}
 
+						model_->w[j*nr_class+i] = w[j];
+
+					free(sub_prob_omp.y);
+
+					free(w);
+				}
+			}
 		}
 
 		free(x);
